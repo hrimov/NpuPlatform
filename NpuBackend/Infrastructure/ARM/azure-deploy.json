@@ -1,0 +1,102 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-02-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "sku": { "name": "Standard_LRS" },
+      "kind": "StorageV2",
+      "condition": "[equals(parameters('storageAccountExists'), 'false')]"
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/servers",
+      "apiVersion": "2017-12-01",
+      "name": "[parameters('pgServerName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "B_Gen5_1",
+        "tier": "Basic",
+        "capacity": 1
+      },
+      "properties": {
+        "administratorLogin": "[parameters('pgAdminUsername')]",
+        "administratorLoginPassword": "[parameters('pgAdminPassword')]",
+        "version": "11",
+        "storage": {
+          "storageSizeGB": 32
+        },
+        "sslEnforcement": "Enabled",
+        "storageProfile": {
+          "backupRetentionDays": 7,
+          "geoRedundantBackup": "Disabled"
+        }
+      },
+      "condition": "[equals(parameters('pgServerExists'), 'false')]"
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2021-02-01",
+      "name": "[parameters('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "tier": "Free",
+        "name": "F1"
+      },
+      "condition": "[equals(parameters('appServicePlanExists'), 'false')]"
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2021-02-01",
+      "name": "[parameters('webAppName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
+        "siteConfig": {
+          "appSettings": [
+            { "name": "ASPNETCORE_ENVIRONMENT", "value": "Development" },
+            {
+              "name": "ConnectionStrings__PostgreSQL",
+              "value": "[concat('Host=', parameters('pgServerName'), '.postgres.database.azure.com;Database=', parameters('pgDatabase'), ';Username=', parameters('pgAdminUsername'), '@', parameters('pgServerName'), ';Password=', parameters('pgAdminPassword'), ';Ssl Mode=Require;Trust Server Certificate=true')]"
+            },
+            {
+              "name": "ConnectionStrings__BlobStorage",
+              "value": "[parameters('connectionStringsBlobStorage')]"
+            },
+            {
+              "name": "Jwt__Secret",
+              "value": "[parameters('jwtSecretKey')]"
+            },
+            {
+              "name": "AzureStorage__BaseUrl",
+              "value": "[parameters('azureStorageBaseUrl')]"
+            },
+            {
+              "name": "AzureStorage__ContainerName",
+              "value": "[parameters('azureStorageContainerName')]"
+            }
+          ]
+        }
+      },
+      "condition": "[equals(parameters('webAppExists'), 'false')]"
+    }
+
+  ],
+  "parameters": {
+    "location": { "type": "string", "defaultValue": "West Europe" },
+    "pgServerName": { "type": "string" },
+    "pgAdminUsername": { "type": "string" },
+    "pgAdminPassword": { "type": "securestring" },
+    "pgDatabase": { "type": "string" },
+    "storageAccountName": { "type": "string" },
+    "webAppName": { "type": "string" },
+    "appServicePlanName": { "type": "string", "defaultValue": "AppServicePlan" },
+    "pgServerExists": { "type": "string", "defaultValue": "false" },
+    "storageAccountExists": { "type": "string", "defaultValue": "false" },
+    "webAppExists": { "type": "string", "defaultValue": "false" },
+    "appServicePlanExists": { "type": "string", "defaultValue": "false" },
+    "jwtSecretKey": {"type": "string"}
+  }
+}
