@@ -1,0 +1,6 @@
+@NpuBackend.Api_HostAddress = http://localhost:5066
+
+GET {{NpuBackend.Api_HostAddress}}/healthcheck/
+Accept: application/json
+
+###
