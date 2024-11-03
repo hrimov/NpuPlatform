@@ -13,6 +13,14 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - npu.postgres.network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER" ]
+      interval: 10s
+      timeout: 60s
+      retries: 5
+      start_period: 10s
 
   api:
     build:
@@ -22,11 +30,17 @@ services:
     hostname: npu.api
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
-      ConnectionStrings__PostgreSQL: "Host={DB_HOST};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};"
+      ConnectionStrings__PostgreSQL: "Host=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};"
+      JWT__Secret: "$${JWT_SECRET_KEY:secret_key_secret_key_secret_key_secret_key_secret_key_secret_key_secret_key}"
     ports:
       - "5000:8080"
     depends_on:
       - postgres
+    networks:
+      - npu.postgres.network
 
 volumes:
   postgres_data:
+
+networks:
+  npu.postgres.network:
