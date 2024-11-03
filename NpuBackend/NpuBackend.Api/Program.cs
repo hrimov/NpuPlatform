@@ -10,6 +10,7 @@ using NpuBackend.Services.Implementations;
 using NpuBackend.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
+
 builder.Services.AddDbContext<NpuDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQL")));
 
@@ -17,8 +18,6 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "NpuBackend API", Version = "v1" });
-
-    // Add JWT Bearer token authentication scheme
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -28,8 +27,6 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'"
     });
-
-    // Require Bearer token authentication for all operations
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -73,6 +70,7 @@ builder.Services.AddScoped<IElementRepository, ElementRepository>();
 
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<INpuCreationService, NpuCreationService>();
 builder.Services.AddScoped<IElementService, ElementService>();
 builder.Services.AddScoped<IScoreService, ScoreService>();
@@ -88,6 +86,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Apply database migrations automatically on startup (as a stopgap solution)
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<NpuDbContext>();
+    dbContext.Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {

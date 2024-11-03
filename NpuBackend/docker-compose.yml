@@ -31,7 +31,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       ConnectionStrings__PostgreSQL: "Host=${DB_HOST};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};"
+      ConnectionStrings__BlobStorage: "${BLOB_STORAGE_CONNECTION_STRING}"
       JWT__Secret: "$${JWT_SECRET_KEY:secret_key_secret_key_secret_key_secret_key_secret_key_secret_key_secret_key}"
+      AzureStorage__ContainerName: "${AZURE_STORAGE_CONTAINER_NAME}"
+      AzureStorage__BaseUrl: "${AZURE_STORAGE_BASE_URL}"
     ports:
       - "5000:8080"
     depends_on:

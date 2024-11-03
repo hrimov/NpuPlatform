@@ -12,10 +12,12 @@ namespace NpuBackend.Api.Controllers
     public class NpuCreationController : ControllerBase
     {
         private readonly INpuCreationService _npuCreationService;
+        private readonly IBlobStorageService _blobStorageService;
 
-        public NpuCreationController(INpuCreationService npuCreationService)
+        public NpuCreationController(INpuCreationService npuCreationService, IBlobStorageService blobStorageService)
         {
             _npuCreationService = npuCreationService;
+            _blobStorageService = blobStorageService;
         }
 
         [HttpGet("{id:guid}")]
@@ -30,7 +32,7 @@ namespace NpuBackend.Api.Controllers
                 Description = creation.Description,
                 UserId = creation.UserId,
                 ElementIds = creation.Elements?.Select(e => e.ElementId).ToList() ?? [],
-                ImageUrl = creation.ImageUrl,
+                ImageUrl = _blobStorageService.GetImageUrl(creation.ImageUrl),
                 CreatedAt = creation.CreatedAt,
                 TotalScore = creation.Scores?.Sum(score => score.Value) ?? 0
             };
@@ -49,7 +51,7 @@ namespace NpuBackend.Api.Controllers
                 Description = creation.Description,
                 UserId = creation.UserId,
                 ElementIds = creation.Elements?.Select(e => e.ElementId).ToList() ?? [],
-                ImageUrl = creation.ImageUrl,
+                ImageUrl = _blobStorageService.GetImageUrl(creation.ImageUrl),
                 CreatedAt = creation.CreatedAt,
                 TotalScore = creation.Scores?.Sum(score => score.Value) ?? 0
             }).ToList();
@@ -59,12 +61,20 @@ namespace NpuBackend.Api.Controllers
 
         [Authorize]
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] NpuCreationRequest request)
+        public async Task<IActionResult> Create([FromForm] NpuCreationRequest request)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized("User ID not found in token.");
+            }
+
+            var fileName = $"{Guid.NewGuid()}/{request.ImageFile.FileName}";
+
+            string imagePrefix;
+            await using (var stream = request.ImageFile.OpenReadStream())
+            {
+                imagePrefix = await _blobStorageService.UploadImageAsync(fileName, stream);
             }
 
             var creation = new NpuCreation
@@ -73,10 +83,10 @@ namespace NpuBackend.Api.Controllers
                 Title = request.Title,
                 Description = request.Description,
                 UserId = userId,
-                ImageUrl = request.ImageUrl,
+                ImageUrl = imagePrefix,
                 CreatedAt = DateTime.UtcNow,
             };
-            
+
             creation.Elements = request.ElementIds.Select(id => new NpuCreationElement
             {
                 NpuCreationId = creation.Id,
@@ -91,12 +101,13 @@ namespace NpuBackend.Api.Controllers
                 Description = creation.Description,
                 UserId = creation.UserId,
                 ElementIds = creation.Elements?.Select(e => e.ElementId).ToList() ?? [],
-                ImageUrl = creation.ImageUrl,
+                ImageUrl = _blobStorageService.GetImageUrl(creation.ImageUrl),
                 CreatedAt = creation.CreatedAt,
                 TotalScore = creation.Scores?.Sum(score => score.Value) ?? 0
             };
 
             return CreatedAtAction(nameof(GetById), new { id = creation.Id }, responseDto);
         }
+
     }
 }
