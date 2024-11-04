@@ -41,9 +41,18 @@ namespace NpuBackend.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] List<Guid>? elementIds = null)
         {
             var creations = await _npuCreationService.GetAllAsync();
+
+            if (elementIds != null && elementIds.Count > 0)
+            {
+                creations = creations.Where(creation => 
+                    creation.Elements.Count() > 0 && 
+                    creation.Elements.Any(e => elementIds.Contains(e.ElementId))
+                ).ToList();
+            }
+
             var responseDtos = creations.Select(creation => new NpuCreationResponseDto
             {
                 Id = creation.Id,
